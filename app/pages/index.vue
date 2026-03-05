@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useActor } from '@xstate/vue'
+import { useNinjaActor } from '../composables/useNinjaActor'
 import { toggleMachine } from '../machines/toggleMachine'
 
-const { snapshot, send } = useActor(toggleMachine)
+const { snapshot, send } = useNinjaActor(toggleMachine, { devTools: true })
 </script>
 
 <template>

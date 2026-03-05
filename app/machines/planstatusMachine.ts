@@ -68,7 +68,9 @@ export const planStatusMachine = setup({
       | { type: "NEW_VERSION" }
       | { type: "DONE" }
       | { type: "VERSION_DONE"; newId: string; newName: string }
-      | { type: "SET_ROLE"; role: Role };
+      | { type: "SET_ROLE"; role: Role }
+      | { type: "TOGGLE_PLAN_SELECTOR" }
+      | { type: "CLOSE_PLAN_SELECTOR" };
   },
 
   guards: {
@@ -107,7 +109,7 @@ export const planStatusMachine = setup({
     }),
     applyNewVersion: assign({
       planId: (_, p: { newId: string; newName: string }) => p.newId,
-      planName: (_, p: { newId: string; newName: string }) => p.newName,
+      planName: (_, p: { newId: string; newName: string }) => p.newName, 
       isDraft: () => true,
       existingPlans: ({ context }, p: { newId: string; newName: string }) => [
         ...context.existingPlans,
@@ -129,6 +131,7 @@ export const planStatusMachine = setup({
     ),
   },
 }).createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QAcA2BDAdgZQC7twFdYBibAUQBUB9AJQHkAZcgbQAYBdRFAe1gEtc-Hpm4gAHogBsAJikA6ACwBOVVIDsy9QFZFARgDMegDQgAnoj0yAvtdNoseAsXkPM8zDwAKGTGXLMAMI0XowAggBy7FxIIMh8gsKisZII2lbyBooG6jIyygAcbHqFphYIyjLa8nrqegXqUtpNbAXa2rb2vk5EsK6+8gDGABZggwDWJNFi8QJCImKpBfXy6e3LBgaFbIrqZZZs+fIyrUY5BVL1ylKdcd34vf1YQ6MTU3oxvHNJi4jpMplsrl8kUSgV9gg9Ic9DUZCoimxGtprjc7HdHA8XG55BAAE7oABmuBIABF6BFWJwZgl5slQEstvJlnCpIj1GwpMpFODzJZFIdVmz+TIrFJFIpbm4eliBnjCcSKEEQuEolTYrNEgsUohlgVVnp1oYtkVdhDlJtju0RYd1IoNG1JfdnH1sehBkIAG5gUnkymfOI0n7atIZLI5PLbMEQvR6KQGeSIooFFSKbQ5W2OjHOp7uN2e70ANXItGwAElydQyRTpurA1r6X9Q0CI6DSrzIVVlAmjPVk80CgOOmipZiXQM8-wvf4ldRQpEa19NXSJI2AWHgZG2+UoRpYfC9NkDBcxZmcKOcbieMgIDwAO7uQaoPiQEiUegAcXfzErDC8ZIA6qq-oarSvwIDIBhsPIqgwWmOxyLGUjRqy6jQayDRZBy+QZsOTqPHiV43ve8hXmAfhvp+34kr+AFAdS3z1iu4GQdBMHKHBigIVISHtrG2h6narQ6NxR7tKe0p9AR153u4pF+IEjCloEADS1D0AAqpQZYkn69FLmBEFQWx7GQZxlzcdG7J6tcQmaCK+gyOo4nnlJRGycgZE+tWaqLqBwaGaxsGmVxPHbjoXaCQOxTqAUWiHM52auTJJEeX4RYluWESVr6C4Bgxy6pAFxkcSF0ZFF2NkDnCBhNI5BQJY8pH4rS8j8BAqDemEwSlgWYSULptb5WB+jxhyjQXJBtRsOxoWILkXZsNoJzqOybIrXoDUuE1BBJK17XejpXWUD1fUDb5QYNggBgiqsdptKo9mbLaEJVDCJmxjIDTaJoS1ObhWaNR5zW7W1HUkBS-7UOlZbkrlIEXUxOhQXCqjInkBRHhCshGdjS35DVXIbf9Z7ZttLUTh6O2YFAJA3pgYCtZgHo8OMDMjqTQM7SI8gU1TUAIPwTM8IMXOYNEcN1gViDXTCuhSPdlQHk9igQmm8bMtoOwNOanIGJtfRk7tvNCNTJBgLil64k8uAEjwuIALY5hJKXm6LPPupOfMC0LIu0uLPl5fpwYy7d8vIorh7Pe2sgKEisgObobCtPrLvA9zEBgMbgs03TDOC8zrNO+ehvp5nHuUyb-P58Lov+8BktgSHcsK49OQq+2WSocoWEiRhHJ68Tzsl+4GdZ6b5uW9btsO0XHOuy1o-l171e+0kdd6X5l1N3d4et1H5TilB92iXGmznCnw9DLimeVwW5sCCItMiHnQuF+zgPz7tgzX3zd+4g-mBvbM1XiIdeg0g6XQxjCAon02QQRgVUdu5Qlp6iTrFTYOxGgxwvpzFq38b7Zz-gAs2Fs7ZTzto7d+W1cFfx-rfe+SQgE1z9pwCWQ1gwY3jLUeoRhzRQjtBCbI1RFr8UMKCOMMYU5SjAB1d0ZDHzPggK+D8X5yCzhVNQRU5Bgj0FoGwiBTE8hGTYiVcys1ITXAqqyZQStGh5BWlI7oMixi4DIXJZRlE1FziylonReiA7w0YoVE4gVUbBTMS9Q4UFBI2JEucJajjHDOLkVbdxCl6AUHUZETRARtFvn8fXdhl0jGhJMvBCJ7Zlo42mr2GxWRPqJJwMk1xqTUrTjyVkui4DN6GJCcVcJiEXpWBhDEkUB5YpJyHGiTwGd4DqjwsQDeCNUgAFoSgQkaNBNMtRPpIjtFURpSygmIHyBCDGqENC9gNE0O0RMugAxlM8TwPgsBHKlldfigJwyNHCjVAwZpuSZEKJxOolQsI2EHuebEIwxjjDeWBTkih9TrFZAYdo2RozFC7G3LQ1w5CpjkI0i88p4XBlRvIOoDQsUqC5KmaMsYkWLTtKoeoeRNhEopmAUll0VrRhyAoFohQoQonZMoFOSV7zcsMcoaMS1onoRivybi6gB73JJvhS80liIKNgJAKVqR+IAhOEYaaA4Gh2n+bxOob0FV2QPFYP6arnYSvcmRfVc09hWuuBSrkIpNa1HqTgz+jFAnvNObxMUShtn2kaFNBxkK55p3cKDLl3TlnSFjMcGlcZKj6B4YI7iShEThguIcb6EoE0fyTe7T0fN3UVABGKDkhhuLWLaDIVWuh5DcX5LkXY7IlqoidcXGhpcx5QHrbyypdQmQ7E5MsHYB5ChBurfg3+DCQ0N2DFCT5x8SgaH0I0VWn0KVotTNcA0DQ4yNOwM0u29bw3biqkoaxJR+WoohcO7M0jZEtKGE+XVEB63cj1JoeW8sdipiPB2yphw9QmtifdXQdz0TqseU039bjUqTs9dubY+oamazTCoKZ1ggA */
   id: "planStatus",
   context: {
     planId: null,
@@ -322,6 +325,25 @@ export const planStatusMachine = setup({
                 params: { msg: "Version creation failed" },
               },
             },
+          },
+        },
+      },
+    },
+
+    // ─── Region 4: Plan selector open/close ────────
+    planSelector: {
+      initial: "closed",
+      states: {
+        closed: {
+          on: {
+            TOGGLE_PLAN_SELECTOR: "open",
+          },
+        },
+        open: {
+          on: {
+            TOGGLE_PLAN_SELECTOR: "closed",
+            CLOSE_PLAN_SELECTOR: "closed",
+            SELECT_PLAN: "closed", // auto-close when a plan is picked
           },
         },
       },
