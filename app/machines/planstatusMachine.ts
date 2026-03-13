@@ -57,6 +57,7 @@ interface Ctx {
 // ── Machine ─────────────────────────────────────────
 
 export const planStatusMachine = setup({
+  // types: Provides full TypeScript inference for context shape and all accepted events
   types: {} as {
     context: Ctx;
     events:
@@ -73,11 +74,15 @@ export const planStatusMachine = setup({
       | { type: "CLOSE_PLAN_SELECTOR" };
   },
 
+  // guards: Boolean conditions that gate transitions — a transition only fires if its guard returns true
   guards: {
+    // Only admins can interact with status controls
     hasPermission: ({ context }) => context.role === "admin",
     hasPlan: ({ context }) => context.planId !== null,
+    // Used by the "check" transient state to route to draft or active
     isDraft: ({ context }) => context.isDraft,
     isActive: ({ context }) => !context.isDraft,
+    // Compound guards combining plan selection + draft/active status + admin role
     canActivate: ({ context }) =>
       context.planId !== null && context.isDraft && context.role === "admin",
     canDeactivate: ({ context }) =>
@@ -86,27 +91,35 @@ export const planStatusMachine = setup({
       context.planId !== null && context.role === "admin",
   },
 
+  // actions: Pure functions that update context via assign() — triggered during transitions
   actions: {
+    // Stores the selected plan's id, name, and draft status into context
     setPlan: assign({
       planId: (_, p: { id: string; name: string; isDraft: boolean }) => p.id,
       planName: (_, p: { id: string; name: string; isDraft: boolean }) => p.name,
       isDraft: (_, p: { id: string; name: string; isDraft: boolean }) => p.isDraft,
       error: () => null,
     }),
+    // Toggle isDraft flag when status changes complete
     markDraft: assign({ isDraft: () => true }),
     markActive: assign({ isDraft: () => false }),
+    // Tracks which async operation is in progress (used for UI spinners)
     setAction: assign({
       activeAction: (_, p: { action: Action }) => p.action,
       error: () => null,
     }),
+    // Resets the active operation indicator after API call finishes
     clearAction: assign({ activeAction: () => null }),
+    // Switches current user role (admin/viewer), affects guard evaluations
     setRole: assign({
       role: (_, p: { role: Role }) => p.role,
     }),
+    // Captures API error message and clears the active action
     setError: assign({
       error: (_, p: { msg: string }) => p.msg,
       activeAction: () => null,
     }),
+    // Replaces current plan with the newly created version and marks it as draft
     applyNewVersion: assign({
       planId: (_, p: { newId: string; newName: string }) => p.newId,
       planName: (_, p: { newId: string; newName: string }) => p.newName, 
@@ -118,13 +131,17 @@ export const planStatusMachine = setup({
     }),
   },
 
+  // actors: Async services invoked by states — fromPromise wraps an async function so XState can track its lifecycle (onDone/onError)
   actors: {
+    // Calls the activate API; invoked when entering the "activating" state
     activateActor: fromPromise(({ input }: { input: { planId: string } }) =>
       apiActivate(input.planId)
     ),
+    // Calls the deactivate API; invoked when entering the "deactivating" state
     deactivateActor: fromPromise(({ input }: { input: { planId: string } }) =>
       apiDeactivate(input.planId)
     ),
+    // Calls the create-version API; invoked when entering the "creatingVersion" state
     createVersionActor: fromPromise(
       ({ input }: { input: { templateId: string; name: string } }) =>
         apiCreateVersion(input.templateId, input.name)
@@ -133,6 +150,7 @@ export const planStatusMachine = setup({
 }).createMachine({
   /** @xstate-layout N4IgpgJg5mDOIC5QAcA2BDAdgZQC7twFdYBibAUQBUB9AJQHkAZcgbQAYBdRFAe1gEtc-Hpm4gAHogBsAJikA6ACwBOVVIDsy9QFZFARgDMegDQgAnoj0yAvtdNoseAsXkPM8zDwAKGTGXLMAMI0XowAggBy7FxIIMh8gsKisZII2lbyBooG6jIyygAcbHqFphYIyjLa8nrqegXqUtpNbAXa2rb2vk5EsK6+8gDGABZggwDWJNFi8QJCImKpBfXy6e3LBgaFbIrqZZZs+fIyrUY5BVL1ylKdcd34vf1YQ6MTU3oxvHNJi4jpMplsrl8kUSgV9gg9Ic9DUZCoimxGtprjc7HdHA8XG55BAAE7oABmuBIABF6BFWJwZgl5slQEstvJlnCpIj1GwpMpFODzJZFIdVmz+TIrFJFIpbm4eliBnjCcSKEEQuEolTYrNEgsUohlgVVnp1oYtkVdhDlJtju0RYd1IoNG1JfdnH1sehBkIAG5gUnkymfOI0n7atIZLI5PLbMEQvR6KQGeSIooFFSKbQ5W2OjHOp7uN2e70ANXItGwAElydQyRTpurA1r6X9Q0CI6DSrzIVVlAmjPVk80CgOOmipZiXQM8-wvf4ldRQpEa19NXSJI2AWHgZG2+UoRpYfC9NkDBcxZmcKOcbieMgIDwAO7uQaoPiQEiUegAcXfzErDC8ZIA6qq-oarSvwIDIBhsPIqgwWmOxyLGUjRqy6jQayDRZBy+QZsOTqPHiV43ve8hXmAfhvp+34kr+AFAdS3z1iu4GQdBMHKHBigIVISHtrG2h6narQ6NxR7tKe0p9AR153u4pF+IEjCloEADS1D0AAqpQZYkn69FLmBEFQWx7GQZxlzcdG7J6tcQmaCK+gyOo4nnlJRGycgZE+tWaqLqBwaGaxsGmVxPHbjoXaCQOxTqAUWiHM52auTJJEeX4RYluWESVr6C4Bgxy6pAFxkcSF0ZFF2NkDnCBhNI5BQJY8pH4rS8j8BAqDemEwSlgWYSULptb5WB+jxhyjQXJBtRsOxoWILkXZsNoJzqOybIrXoDUuE1BBJK17XejpXWUD1fUDb5QYNggBgiqsdptKo9mbLaEJVDCJmxjIDTaJoS1ObhWaNR5zW7W1HUkBS-7UOlZbkrlIEXUxOhQXCqjInkBRHhCshGdjS35DVXIbf9Z7ZttLUTh6O2YFAJA3pgYCtZgHo8OMDMjqTQM7SI8gU1TUAIPwTM8IMXOYNEcN1gViDXTCuhSPdlQHk9igQmm8bMtoOwNOanIGJtfRk7tvNCNTJBgLil64k8uAEjwuIALY5hJKXm6LPPupOfMC0LIu0uLPl5fpwYy7d8vIorh7Pe2sgKEisgObobCtPrLvA9zEBgMbgs03TDOC8zrNO+ehvp5nHuUyb-P58Lov+8BktgSHcsK49OQq+2WSocoWEiRhHJ68Tzsl+4GdZ6b5uW9btsO0XHOuy1o-l171e+0kdd6X5l1N3d4et1H5TilB92iXGmznCnw9DLimeVwW5sCCItMiHnQuF+zgPz7tgzX3zd+4g-mBvbM1XiIdeg0g6XQxjCAon02QQRgVUdu5Qlp6iTrFTYOxGgxwvpzFq38b7Zz-gAs2Fs7ZTzto7d+W1cFfx-rfe+SQgE1z9pwCWQ1gwY3jLUeoRhzRQjtBCbI1RFr8UMKCOMMYU5SjAB1d0ZDHzPggK+D8X5yCzhVNQRU5Bgj0FoGwiBTE8hGTYiVcys1ITXAqqyZQStGh5BWlI7oMixi4DIXJZRlE1FziylonReiA7w0YoVE4gVUbBTMS9Q4UFBI2JEucJajjHDOLkVbdxCl6AUHUZETRARtFvn8fXdhl0jGhJMvBCJ7Zlo42mr2GxWRPqJJwMk1xqTUrTjyVkui4DN6GJCcVcJiEXpWBhDEkUB5YpJyHGiTwGd4DqjwsQDeCNUgAFoSgQkaNBNMtRPpIjtFURpSygmIHyBCDGqENC9gNE0O0RMugAxlM8TwPgsBHKlldfigJwyNHCjVAwZpuSZEKJxOolQsI2EHuebEIwxjjDeWBTkih9TrFZAYdo2RozFC7G3LQ1w5CpjkI0i88p4XBlRvIOoDQsUqC5KmaMsYkWLTtKoeoeRNhEopmAUll0VrRhyAoFohQoQonZMoFOSV7zcsMcoaMS1onoRivybi6gB73JJvhS80liIKNgJAKVqR+IAhOEYaaA4Gh2n+bxOob0FV2QPFYP6arnYSvcmRfVc09hWuuBSrkIpNa1HqTgz+jFAnvNObxMUShtn2kaFNBxkK55p3cKDLl3TlnSFjMcGlcZKj6B4YI7iShEThguIcb6EoE0fyTe7T0fN3UVABGKDkhhuLWLaDIVWuh5DcX5LkXY7IlqoidcXGhpcx5QHrbyypdQmQ7E5MsHYB5ChBurfg3+DCQ0N2DFCT5x8SgaH0I0VWn0KVotTNcA0DQ4yNOwM0u29bw3biqkoaxJR+WoohcO7M0jZEtKGE+XVEB63cj1JoeW8sdipiPB2yphw9QmtifdXQdz0TqseU039bjUqTs9dubY+oamazTCoKZ1ggA */
   id: "planStatus",
+  // context: The machine's extended state — all mutable data lives here instead of in component refs
   context: {
     planId: null,
     planName: "",
@@ -143,8 +161,10 @@ export const planStatusMachine = setup({
     existingPlans: [],
   },
 
+  // type "parallel": All top-level regions (STATUS, DROPDOWN, STATUS_CHANGE, PLAN_SELECTOR) run simultaneously
   type: "parallel",
 
+  // Root-level "on" makes SET_ROLE a global event — it fires in any state, because role (admin/viewer) affects all guards across every region
   on: {
     SET_ROLE: {
       actions: {
@@ -156,7 +176,7 @@ export const planStatusMachine = setup({
 
   states: {
     // ─── Region 1: Plan status (draft ↔ active) ────
-    plan: {
+    STATUS: {
       initial: "noPlan",
       states: {
         noPlan: {
@@ -174,6 +194,7 @@ export const planStatusMachine = setup({
             },
           },
         },
+        // Transient state — "always" transitions evaluate guards immediately and route to draft or active
         check: {
           always: [
             { guard: "isDraft", target: "draft" },
@@ -228,7 +249,7 @@ export const planStatusMachine = setup({
     },
 
     // ─── Region 2: Dropdown open/close ──────────────
-    dropdown: {
+    STATUS_DROPDOWN: {
       initial: "closed",
       states: {
         closed: {
@@ -248,7 +269,7 @@ export const planStatusMachine = setup({
     },
 
     // ─── Region 3: Async API operation ──────────────
-    operation: {
+    STATUS_CHANGE: {
       initial: "idle",
       states: {
         idle: {
@@ -281,6 +302,7 @@ export const planStatusMachine = setup({
         },
 
         activating: {
+          // invoke: Spawns the activateActor when this state is entered; onDone/onError handle the promise result
           invoke: {
             src: "activateActor",
             input: ({ context }) => ({ planId: context.planId! }),
@@ -331,7 +353,7 @@ export const planStatusMachine = setup({
     },
 
     // ─── Region 4: Plan selector open/close ────────
-    planSelector: {
+    PLAN_SELECTOR: {
       initial: "closed",
       states: {
         closed: {

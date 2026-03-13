@@ -8,7 +8,7 @@ import { AllCommunityModule, ModuleRegistry, type GridApi, type GridReadyEvent, 
 ModuleRegistry.registerModules([AllCommunityModule])
 
 // ── XState Actor ──────────────────────────────────
-const { snapshot, send } = useNinjaActor(planStatusMachine, { devTools: true })
+const { snapshot, send } = useNinjaActor(planStatusMachine)
 
 // ── Mock Data ─────────────────────────────────────
 interface MockPlan {
@@ -201,10 +201,10 @@ function logEvent(msg: string) {
 // ── Derived XState state ──────────────────────────
 const stateValue = computed(() => snapshot.value.value as Record<string, string>)
 const ctx = computed(() => snapshot.value.context)
-const planRegion = computed(() => stateValue.value.plan)
-const dropdownRegion = computed(() => stateValue.value.dropdown)
-const operationRegion = computed(() => stateValue.value.operation)
-const planSelectorRegion = computed(() => stateValue.value.planSelector)
+const planRegion = computed(() => stateValue.value.STATUS)
+const dropdownRegion = computed(() => stateValue.value.STATUS_DROPDOWN)
+const operationRegion = computed(() => stateValue.value.STATUS_CHANGE)
+const planSelectorRegion = computed(() => stateValue.value.PLAN_SELECTOR)
 const isOperating = computed(() => operationRegion.value !== 'idle')
 const hasPlan = computed(() => ctx.value.planId !== null)
 const isAdmin = computed(() => ctx.value.role === 'admin')
